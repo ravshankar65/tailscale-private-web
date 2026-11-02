@@ -3,7 +3,7 @@
 
 COMPOSE := docker compose --env-file .env -f web/compose.yaml
 
-.PHONY: help policy-check policy keys host up down logs status validate validate-quick clean
+.PHONY: help policy-check policy keys host up down logs status validate validate-quick clean demo-break
 
 help:
 	@echo "Client side (Mac):"
@@ -12,6 +12,7 @@ help:
 	@echo "  make keys          mint single-use tagged auth keys and print .env lines"
 	@echo "  make validate      end-to-end checks -> evidence/validation-*.md"
 	@echo "  make validate-quick  same, without the interactive SSH login"
+	@echo "  make demo-break    DEMO: show the policy tests rejecting a forbidden grant (never applies)"
 	@echo "Server side (Ubuntu host):"
 	@echo "  make host          install Tailscale, join as tag:server with Tailscale SSH"
 	@echo "  make up            start the cafe site behind the Tailscale sidecar"
@@ -22,24 +23,24 @@ help:
 
 # ---- client side -----------------------------------------------------------
 policy-check:
-	./scripts/apply-policy.sh --dry-run
+	bash ./scripts/apply-policy.sh --dry-run
 
 policy:
-	./scripts/apply-policy.sh
+	bash ./scripts/apply-policy.sh
 
 keys:
-	@echo "TS_AUTHKEY_HOST=$$(./scripts/mint-authkey.sh tag:server)"
-	@echo "TS_AUTHKEY_WEB=$$(./scripts/mint-authkey.sh tag:web)"
+	@echo "TS_AUTHKEY_HOST=$$(bash ./scripts/mint-authkey.sh tag:server)"
+	@echo "TS_AUTHKEY_WEB=$$(bash ./scripts/mint-authkey.sh tag:web)"
 
 validate:
-	./scripts/validate.sh
+	bash ./scripts/validate.sh
 
 validate-quick:
-	SKIP_SSH=1 ./scripts/validate.sh
+	SKIP_SSH=1 bash ./scripts/validate.sh
 
 # ---- server side -----------------------------------------------------------
 host:
-	sudo ./scripts/bootstrap-host.sh
+	sudo bash ./scripts/bootstrap-host.sh
 
 up:
 	$(COMPOSE) up -d --build
@@ -61,3 +62,6 @@ down:
 
 clean:
 	$(COMPOSE) down -v
+
+demo-break:
+	bash ./scripts/demo-break-policy.sh

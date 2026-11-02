@@ -1,7 +1,7 @@
 // Tailnet policy for the "private web + Tailscale SSH" demo.
 //
 // This file is a TEMPLATE. scripts/apply-policy.sh substitutes the
-// __PLACEHOLDERS__ from .env, validates it against the Tailscale API,
+// placeholders (ADMIN_EMAIL, LINUX_USER, CONTRACTOR_EMAILS) from .env, validates it against the Tailscale API,
 // backs up the current policy, and then applies it.
 //
 // Design principles:

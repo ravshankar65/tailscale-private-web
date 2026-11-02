@@ -17,7 +17,7 @@ need_cmd curl
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
 
-TEMPLATE="$REPO_ROOT/policy/policy.template.hujson"
+TEMPLATE="${POLICY_TEMPLATE:-$REPO_ROOT/policy/policy.template.hujson}"   # override used only by demo-break-policy.sh
 RENDERED="$REPO_ROOT/policy/policy.rendered.hujson"   # git-ignored
 BACKUP_DIR="$REPO_ROOT/policy/backups"                # git-ignored
 mkdir -p "$BACKUP_DIR"
