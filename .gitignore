@@ -1,0 +1,9 @@
+# secrets
+.env
+
+# generated
+policy/policy.rendered.hujson
+policy/backups/
+
+# OS
+.DS_Store

@@ -1,0 +1,116 @@
+// Tailnet policy for the "private web + Tailscale SSH" demo.
+//
+// This file is a TEMPLATE. scripts/apply-policy.sh substitutes the
+// __PLACEHOLDERS__ from .env, validates it against the Tailscale API,
+// backs up the current policy, and then applies it.
+//
+// Design principles:
+//   * Default deny: nothing is reachable unless a grant below allows it.
+//   * Identity for humans (groups), tags for servers (no human owner, no key expiry).
+//   * Servers never initiate connections to each other (no tag -> tag grants
+//     except CI), which limits lateral movement if a container is compromised.
+//   * The "tests" blocks are access regression tests: the control plane
+//     REJECTS any future policy edit that breaks them.
+{
+	"groups": {
+		// Engineers: full access to the web app and SSH (with re-auth) to the server.
+		"group:eng": ["__ADMIN_EMAIL__"],
+		// Contractors: web app only. Add a second login here to demo least privilege.
+		"group:contractors": [__CONTRACTOR_EMAILS__],
+	},
+
+	// Who is allowed to apply each tag to a machine.
+	"tagOwners": {
+		"tag:server": ["autogroup:admin"], // the Ubuntu host itself
+		"tag:web":    ["autogroup:admin"], // the web-service sidecar container
+		"tag:ci":     ["autogroup:admin"], // optional: ephemeral CI runners
+	},
+
+	"grants": [
+		// Keep the owner's personal devices working with each other.
+		// (Replacing the default allow-all policy would otherwise cut them off.)
+		{
+			"src": ["autogroup:member"],
+			"dst": ["autogroup:self"],
+			"ip":  ["*"],
+		},
+
+		// Engineers -> private web app over HTTPS (+ ping for diagnostics).
+		{
+			"src": ["group:eng"],
+			"dst": ["tag:web"],
+			"ip":  ["tcp:443", "icmp:*"],
+		},
+
+		// Engineers -> the server's SSH port (Tailscale SSH answers on :22 of the tailnet IP).
+		{
+			"src": ["group:eng"],
+			"dst": ["tag:server"],
+			"ip":  ["tcp:22", "icmp:*"],
+		},
+
+		// Contractors -> web app only. No SSH, no ping.
+		{
+			"src": ["group:contractors"],
+			"dst": ["tag:web"],
+			"ip":  ["tcp:443"],
+		},
+
+		// CI runners -> web app only (smoke tests).
+		{
+			"src": ["tag:ci"],
+			"dst": ["tag:web"],
+			"ip":  ["tcp:443"],
+		},
+	],
+
+	"ssh": [
+		// Engineers may SSH to the server ONLY as the named Linux user (never root),
+		// and must re-authenticate with their identity provider ("check" mode).
+		{
+			"action": "check",
+			"src":    ["group:eng"],
+			"dst":    ["tag:server"],
+			"users":  ["__LINUX_USER__"],
+		},
+		// Tailscale default: members may SSH into their own devices with re-auth.
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+
+	// Network-layer regression tests: evaluated on every policy save.
+	"tests": [
+		{
+			// The engineer can reach the app and SSH port...
+			"src":    "__ADMIN_EMAIL__",
+			"accept": ["tag:web:443", "tag:server:22"],
+			// ...but NOT the app's internal port or SSH into the web container.
+			"deny":   ["tag:web:80", "tag:web:8080", "tag:web:22"],
+		},
+		{
+			// CI can smoke-test the app but cannot touch the server.
+			"src":    "tag:ci",
+			"accept": ["tag:web:443"],
+			"deny":   ["tag:server:22"],
+		},
+		{
+			// Lateral movement check: a compromised web container cannot reach the host.
+			"src":  "tag:web",
+			"deny": ["tag:server:22", "tag:server:443"],
+		},
+	],
+
+	// SSH-layer regression tests.
+	"sshTests": [
+		{
+			"src":   "__ADMIN_EMAIL__",
+			"dst":   ["tag:server"],
+			"check": ["__LINUX_USER__"],
+			"deny":  ["root"],
+		},
+	],
+}
