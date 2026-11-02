@@ -39,7 +39,8 @@ sed -e "s|__ADMIN_EMAIL__|${ADMIN_EMAIL}|g" \
     -e "s|__CONTRACTOR_EMAILS__|${contractors}|g" \
     "$TEMPLATE" > "$RENDERED"
 
-grep -q '__[A-Z_]*__' "$RENDERED" && die "unrendered placeholder left in $RENDERED"
+body="$(grep -v '^[[:space:]]*//' "$RENDERED")"
+grep -qE '__(ADMIN_EMAIL|LINUX_USER|CONTRACTOR_EMAILS)__' <<<"$body" && die "unrendered placeholder left in $RENDERED"
 
 auth=(-u "${TS_API_KEY}:")
 

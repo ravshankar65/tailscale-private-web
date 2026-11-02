@@ -40,9 +40,13 @@ tcp_open() {  # tcp_open host port -> 0 if a TCP connection succeeds within 3s
 
 # ---------------------------------------------------------------------------
 section "1. Tailnet membership"
-"$TS" status 2>&1 | log
-"$TS" status | grep -qE "[[:space:]]web[[:space:]]"            && result PASS "node 'web' is in the tailnet"            || result FAIL "node 'web' not found in tailscale status"
-"$TS" status | grep -qE "[[:space:]]${HOST_TS_NAME}[[:space:]]" && result PASS "node '${HOST_TS_NAME}' is in the tailnet" || result FAIL "node '${HOST_TS_NAME}' not found"
+# Capture once, then grep the variable. (Piping straight into `grep -q` under
+# `set -o pipefail` fails spuriously: grep exits on the first match, the writer
+# gets SIGPIPE, and the pipeline reports failure.)
+ts_status="$("$TS" status 2>&1)"
+echo "$ts_status" | log
+grep -qE "[[:space:]]web[[:space:]]" <<<"$ts_status"            && result PASS "node 'web' is in the tailnet"            || result FAIL "node 'web' not found in tailscale status"
+grep -qE "[[:space:]]${HOST_TS_NAME}[[:space:]]" <<<"$ts_status" && result PASS "node '${HOST_TS_NAME}' is in the tailnet" || result FAIL "node '${HOST_TS_NAME}' not found"
 endsec
 
 # ---------------------------------------------------------------------------
